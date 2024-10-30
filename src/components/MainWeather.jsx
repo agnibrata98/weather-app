@@ -1,41 +1,57 @@
 import axios from 'axios';
 import React, { useState } from 'react';
-import { TextField, Button, Typography, Card, CardContent, Container, Grid, Paper, List, ListItem, ListItemText } from '@mui/material';
+import { TextField, Button, Typography, Container, Grid, Paper, List, ListItem, ListItemText, CircularProgress } from '@mui/material';
 
 const MainWeather = () => {
     const [city, setCity] = useState('');
     const [weather, setWeather] = useState(null);
     const [weatherForecast, setWeatherForecast] = useState(null);
+    const [error, setError] = useState('');
+    const [loading, setLoading] = useState(false); // Loading state
 
     const getWeather = async () => {
-        if (!city.trim()) return; // Ensure city is not empty
+        if (!city.trim()) return;
+        setLoading(true); // Start loading
         const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=f66d9727501911f62c328508b94c5e3e&units=metric`;
         try {
             const response = await axios.get(url);
             setWeather(response.data);
-            console.log(response.data);
+            setError('');
         } catch (error) {
-            console.error("Error fetching weather data:", error);
+            if (error.response && error.response.status === 404) {
+                setError("No data found, please enter a valid name.");
+            } else {
+                setError("Error fetching weather data.");
+            }
+        } finally {
+            setLoading(false); // Stop loading
         }
     };
 
-
     const getWeatherForecast = async () => {
         if (!city.trim()) return;
+        setLoading(true); // Start loading
         const url = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=f66d9727501911f62c328508b94c5e3e&units=metric`;
         try {
             const response = await axios.get(url);
-            const forecastData = response.data.list.filter((_, index) => index % 8 === 0); // 8 intervals per day
-            // const forecastData = response.data.list.slice(1, 5); 
+            const forecastData = response.data.list.filter((_, index) => index % 8 === 0);
             setWeatherForecast(forecastData);
-            console.log(forecastData);
-            // console.log(response.data);
+            setError('');
         } catch (error) {
-            console.error("Error fetching forecast data:", error);
+            if (error.response && error.response.status === 404) {
+                setError("No data found, please enter a valid name.");
+            } else {
+                setError("Error fetching forecast data.");
+            }
+        } finally {
+            setLoading(false); // Stop loading
         }
     };
 
     const handleSearch = () => {
+        setWeather(null);
+        setWeatherForecast(null);
+        setError('');
         getWeather();
         getWeatherForecast();
     };
@@ -60,11 +76,38 @@ const MainWeather = () => {
                 Search
             </Button>
 
+            {/* Display "please wait" message while loading */}
+            {loading && (
+                <Grid container justifyContent="center" alignItems="center" style={{ marginTop: '20px', gap: '10px' }}>
+                    <CircularProgress style={{ marginTop: '20px' }} />
+                    <Typography variant="body1" color="textSecondary" style={{ marginTop: '20px' }}>
+                        Please wait some time...
+                    </Typography>
+                </Grid>
+            )}
+
+            {/* Display initial instruction message if there's no data */}
+            {!weather && !weatherForecast && !error && !loading && (
+                <Typography variant="body1" color="textSecondary" style={{ marginTop: '20px' }}>
+                    Write any city name to get proper weather data.
+                </Typography>
+            )}
+
+            {/* Display error message if there is one */}
+            {error && (
+                <Typography variant="body1" color="error" style={{ marginTop: '20px' }}>
+                    {error}
+                </Typography>
+            )}
+
             {weather && (
                 <Container>
                     <Grid container spacing={2} justifyContent="center">
                         <Grid item xs={12} sm={6} md={4}>
-                            <Paper elevation={3} style={{ padding: '20px' }}>
+                            <Paper elevation={3} style={{ padding: '20px', display: 'flex', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-evenly' }}>
+                            {weather.weather && weather.weather[0] && weather.weather[0].icon && (
+                                <img src={`https://openweathermap.org/img/w/${weather.weather[0].icon}.png`} alt="weather icon" />
+                            )}
                                 <Typography variant="h5">Description: {weather.weather[0].description}</Typography>
                             </Paper>
                         </Grid>
@@ -157,7 +200,7 @@ const MainWeather = () => {
                         ))}
                     </List>
                 </Container>
-                )}
+            )}
         </div>
     );
 };
